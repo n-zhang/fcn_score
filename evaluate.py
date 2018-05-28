@@ -10,7 +10,7 @@ import pdb
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--result_dir", type=str, required=True, help="directory that has the result images")
-parser.add_argument("--gt_dir", type=str, required=True, help="directory that has groundtruth images")
+parser.add_argument("--gt_dir", type=str, default="images/cityscapes_original/", help="directory that has groundtruth images")
 
 parser.add_argument("--output_dir", type=str, default="./result/", help="Where to save the evaluation results")
 parser.add_argument("--caffemodel_dir", type=str, default='caffemodel/', help="Where the FCN-8s caffemodel stored")
@@ -65,7 +65,7 @@ def preprocess(im):
     in_ -= mean
     in_ = in_.transpose((2, 0, 1))
     return in_
-    
+
 labels = __import__('labels')
 id2trainId = {label.id: label.trainId for label in labels.labels}
 trainId2color = {label.trainId: label.color for label in labels.labels}
@@ -122,16 +122,29 @@ def main():
     for i in range(n_imgs):
         if i % 10 == 0:
             print('Evaluating: %d/%d' %(i, n_imgs))
-        gt_segmentation_file = args.gt_dir + '/' + str(i) + '_label.png'
-        input_im_file = args.result_dir + '/' + str(i) + '.png'
-        
+
+        gt_segmentation_file = os.path.join(args.gt_dir, str(i) + '_label.png')
+        #input_im_file = os.path.join(args.result_dir, str(i) + '.jpg')
+        input_im_file = os.path.join(args.result_dir, str(i) + '_image.jpg')
+        #print input_im_file
+        #raw_input('hi')
         label_im = np.array(cv2.imread(gt_segmentation_file))
         label_im = label_im[:,:,0]
-        
+        #print np.shape(label_im)
+
         label_im = label_map(label_im)
         input_im = cv2.imread(input_im_file)
-        input_im = cv2.resize(input_im, (256, 256))
-        input_im = cv2.resize(input_im, (label_im.shape[1], label_im.shape[0])) 
+        if np.max(input_im) <= 1.0:
+            input_im = input_im * 255.0
+
+        if np.shape(input_im)[:2] != (256,256):
+            print 'resizing'
+            raw_input('debug stop')
+            input_im = cv2.resize(input_im, (256, 256))
+
+        #print np.min(input_im), np.max(input_im)
+        #raw_input('fuck')
+        input_im = cv2.resize(input_im, (label_im.shape[1], label_im.shape[0]))
         im = preprocess(input_im)
         #input_im = c(input_im_files[i]))[:,:,0:3]
         out = segrun(net, im)
@@ -157,5 +170,3 @@ def main():
             f.write('%s: acc = %f, iou = %f\n' % (cl, per_class_acc[i], per_class_iou[i]))
 
 main()
-
-
